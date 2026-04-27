@@ -3,17 +3,17 @@ main = "src/index.ts"
 compatibility_date = "2026-04-27"
 compatibility_flags = ["nodejs_compat"]
 
-# KV namespace IDs are populated after `wrangler kv:namespace create LICENSES`
-# and `wrangler kv:namespace create PAYMENTS`. See README "Deploy bootstrap".
+# KV namespace IDs from `wrangler kv namespace create LICENSES`
+# and `wrangler kv namespace create PAYMENTS`. See README "Deploy bootstrap".
 [[kv_namespaces]]
 binding = "LICENSES"
-id = "0000000000000000000000000000000a"
-preview_id = "0000000000000000000000000000000a"
+id = "22fc1d88e2034628a500307c5c6a9c82"
+preview_id = "22fc1d88e2034628a500307c5c6a9c82"
 
 [[kv_namespaces]]
 binding = "PAYMENTS"
-id = "0000000000000000000000000000000b"
-preview_id = "0000000000000000000000000000000b"
+id = "d2429a43a9aa43c188b7858e1744c083"
+preview_id = "d2429a43a9aa43c188b7858e1744c083"
 
 [vars]
 FRONTEND_URL = "https://plainvoice.de"
