@@ -71,9 +71,13 @@ export function createWebhookRoute(deps: {
 
     try {
       await deps.sendLicenseEmail(c.env, record);
-    } catch {
-      // Resend transient failure: KV is the source of truth, customer can re-fetch
-      // their key via support. Never echo customer data back to Stripe error responses.
+    } catch (err) {
+      console.error('resend.send_failed', {
+        paymentIntentId: record.stripePaymentIntentId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      // KV is the source of truth — customer can re-fetch via support.
+      // Stripe webhook still returns 200 to avoid re-deliveries.
     }
 
     return c.body(null, 200);
