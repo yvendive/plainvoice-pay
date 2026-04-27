@@ -1,0 +1,27 @@
+name = "plainvoice-pay"
+main = "src/index.ts"
+compatibility_date = "2026-04-27"
+compatibility_flags = ["nodejs_compat"]
+
+# KV namespace IDs are populated after `wrangler kv:namespace create LICENSES`
+# and `wrangler kv:namespace create PAYMENTS`. See README "Deploy bootstrap".
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "0000000000000000000000000000000a"
+preview_id = "0000000000000000000000000000000a"
+
+[[kv_namespaces]]
+binding = "PAYMENTS"
+id = "0000000000000000000000000000000b"
+preview_id = "0000000000000000000000000000000b"
+
+[vars]
+FRONTEND_URL = "https://plainvoice.de"
+ALLOWED_ORIGINS = "https://plainvoice.de,http://localhost:3000"
+
+# Secrets — set via `wrangler secret put`, never committed:
+#   STRIPE_SECRET_KEY
+#   STRIPE_WEBHOOK_SECRET
+#   STRIPE_PRICE_ID
+#   RESEND_API_KEY
+#   RESEND_FROM_ADDRESS

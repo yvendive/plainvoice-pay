@@ -1,0 +1,11 @@
+node_modules
+.dev.vars
+.wrangler
+.mf
+dist
+out
+coverage
+*.log
+.DS_Store
+.env
+.env.local
