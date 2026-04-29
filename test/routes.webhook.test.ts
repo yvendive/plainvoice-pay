@@ -213,6 +213,48 @@ describe('POST /api/webhook', () => {
     expect(licenses.keys).toHaveLength(0);
   });
 
+  it('LICENSES.put failure after PAYMENTS.put success: returns 500 and does NOT send email', async () => {
+    const stub = makeStubEvent({
+      paymentIntent: 'pi_test_licenses_fail',
+      email: 'buyer@example.com',
+      locale: 'de',
+    });
+    const constructEventAsync: ConstructEventMock = vi.fn(async () => stub);
+    const sendLicenseEmail: SendEmailMock = vi.fn(async () => {});
+    const app = buildApp({ constructEventAsync, sendLicenseEmail });
+
+    // Build a mock LICENSES KV where put() throws after the first call
+    // (the idempotency check uses PAYMENTS, so LICENSES.get is not called first)
+    const failingLicenses: KVNamespace = {
+      get: vi.fn(async () => null),
+      put: vi.fn(async () => {
+        throw new Error('KV transient write failure');
+      }),
+      delete: vi.fn(async () => {}),
+      list: vi.fn(async () => ({ keys: [], list_complete: true, caret: undefined })),
+      getWithMetadata: vi.fn(async () => ({ value: null, metadata: null, cacheStatus: null })),
+    } as unknown as KVNamespace;
+
+    const customEnv = { ...env, LICENSES: failingLicenses };
+
+    const res = await app.fetch(
+      new Request('https://worker.test/api/webhook', {
+        method: 'POST',
+        headers: { 'Stripe-Signature': 't=1,v1=stub' },
+        body: '{}',
+      }),
+      customEnv,
+    );
+
+    // LICENSES write failed → bail with 500, no email
+    expect(res.status).toBe(500);
+    expect(sendLicenseEmail).not.toHaveBeenCalled();
+
+    // PAYMENTS was written before LICENSES (correct order)
+    const paymentValue = await env.PAYMENTS.get('pi_test_licenses_fail');
+    expect(paymentValue).toBeTruthy(); // PI → key mapping was persisted
+  });
+
   it('does not echo customer data in error responses', async () => {
     const constructEventAsync: ConstructEventMock = vi.fn(async () => {
       throw new Error('signature mismatch — secret_buyer@example.com');
