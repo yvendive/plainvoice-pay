@@ -4,6 +4,18 @@ import { createApp } from '../src/app';
 import type { StripeClient } from '../src/lib/stripe';
 import type { LicenseRecord } from '../src/lib/license';
 
+/** Minimal KV mock — overrides let you spy on specific methods. */
+function buildMockKV(overrides: Partial<KVNamespace> = {}): KVNamespace {
+  return {
+    get: vi.fn(async () => null),
+    put: vi.fn(async () => {}),
+    delete: vi.fn(async () => {}),
+    list: vi.fn(async () => ({ keys: [], list_complete: true, caret: undefined })),
+    getWithMetadata: vi.fn(async () => ({ value: null, metadata: null, cacheStatus: null })),
+    ...overrides,
+  } as unknown as KVNamespace;
+}
+
 function buildApp() {
   const stripe: StripeClient = {
     checkout: {
@@ -166,5 +178,94 @@ describe('POST /api/verify', () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toEqual({ valid: true });
     expect(body.email).toBeUndefined();
+  });
+});
+
+describe('POST /api/verify — regex pre-check (issue #2)', () => {
+  /**
+   * Helper: build an app backed by a spy LICENSES KV so we can assert
+   * that KV.get() is never called for malformed inputs.
+   */
+  function buildAppWithKVSpy() {
+    const kvGet = vi.fn(async (_key: string) => null);
+    const mockLicenses = buildMockKV({ get: kvGet as unknown as KVNamespace['get'] });
+    const spyEnv = { ...env, LICENSES: mockLicenses };
+
+    const stripe: StripeClient = {
+      checkout: { sessions: { create: async () => { throw new Error('not used'); } } },
+      webhooks: { constructEventAsync: async () => { throw new Error('not used'); } },
+    };
+    const app = createApp({ getStripe: () => stripe, sendLicenseEmail: vi.fn(async () => {}) });
+
+    return { app, kvGet, spyEnv };
+  }
+
+  async function verifyKey(key: string, extraEnv?: unknown) {
+    const { app, kvGet, spyEnv } = buildAppWithKVSpy();
+    const res = await app.fetch(
+      new Request('https://worker.test/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://plainvoice.de' },
+        body: JSON.stringify({ key }),
+      }),
+      extraEnv ?? spyEnv,
+    );
+    return { res, kvGet };
+  }
+
+  it('length-21 key returns { valid: false } without a KV read', async () => {
+    // 21 chars — one short of the required 22
+    const { res, kvGet } = await verifyKey('a'.repeat(21));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    expect(kvGet).not.toHaveBeenCalled();
+  });
+
+  it('length-23 key returns { valid: false } without a KV read', async () => {
+    // 23 chars — one over the required 22
+    const { res, kvGet } = await verifyKey('a'.repeat(23));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    expect(kvGet).not.toHaveBeenCalled();
+  });
+
+  it('key with special chars returns { valid: false } without a KV read', async () => {
+    // 22 chars but contains '!' which is outside [a-z0-9_-]
+    const { res, kvGet } = await verifyKey('aaaa1111bbbb2222cccc!!');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    expect(kvGet).not.toHaveBeenCalled();
+  });
+
+  it('key with spaces returns { valid: false } without a KV read', async () => {
+    // 22 chars but contains spaces
+    const { res, kvGet } = await verifyKey('aaaa 111 bbbb 222 ccc ');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    expect(kvGet).not.toHaveBeenCalled();
+  });
+
+  it('non-string key returns { valid: false } without a KV read', async () => {
+    const { app, kvGet, spyEnv } = buildAppWithKVSpy();
+    const res = await app.fetch(
+      new Request('https://worker.test/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://plainvoice.de' },
+        body: JSON.stringify({ key: ['not', 'a', 'string'] }),
+      }),
+      spyEnv,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    expect(kvGet).not.toHaveBeenCalled();
+  });
+
+  it('valid-format key still reaches KV (existing behaviour preserved)', async () => {
+    // A well-formed key that simply is not in KV → { valid: false } via KV miss
+    const { res, kvGet } = await verifyKey('aaaa1111bbbb2222cccc33');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ valid: false });
+    // KV WAS called this time — the regex passed, so getLicense ran
+    expect(kvGet).toHaveBeenCalledOnce();
   });
 });

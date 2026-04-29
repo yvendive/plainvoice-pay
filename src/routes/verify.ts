@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { corsFromEnv } from '../lib/cors';
 import { getLicense } from '../lib/kv';
-import { normalizeLicenseKey } from '../lib/license';
+import { normalizeLicenseKey, LICENSE_KEY_PATTERN } from '../lib/license';
 
 export function createVerifyRoute(): Hono<AppEnv> {
   const route = new Hono<AppEnv>();
@@ -22,6 +22,11 @@ export function createVerifyRoute(): Hono<AppEnv> {
 
     const key = normalizeLicenseKey((raw as { key: string }).key);
     if (!key) return c.json({ valid: false });
+
+    // Reject malformed keys before touching KV — prevents quota burn and probing.
+    if (!LICENSE_KEY_PATTERN.test(key)) {
+      return c.json({ valid: false }, 200);
+    }
 
     const record = await getLicense(c.env.LICENSES, key);
     if (!record || record.revoked) {
