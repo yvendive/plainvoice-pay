@@ -61,8 +61,8 @@ function streamingOversizeRequest(path: string, byteCount: number): Request {
       Origin: 'https://plainvoice.de',
       // Deliberately NO Content-Length — ReadableStream body omits it
     },
-    // @ts-expect-error — duplex is required for streaming bodies in some runtimes
     body: stream,
+    // @ts-expect-error — duplex is required for streaming bodies in some runtimes
     duplex: 'half',
   });
 }

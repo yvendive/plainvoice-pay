@@ -85,7 +85,10 @@ export function createWebhookRoute(deps: {
       await putLicense(c.env.LICENSES, record);
     } catch (err) {
       // PAYMENTS is already written; support can reconcile using the PI.
-      console.error('webhook.licenses_write_failed', { paymentIntentId });
+      console.error('webhook.licenses_write_failed', {
+        paymentIntentId,
+        message: err instanceof Error ? err.message : String(err),
+      });
       // Bail with 500 — no email sent, Stripe retries; PAYMENTS-already-set
       // check at the top of the next delivery handles idempotency.
       return c.body(null, 500);
