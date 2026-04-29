@@ -66,8 +66,39 @@ export function createWebhookRoute(deps: {
       locale,
     };
 
-    await putLicense(c.env.LICENSES, record);
-    await putPaymentLicense(c.env.PAYMENTS, paymentIntentId, key);
+    // Write PAYMENTS first so that if LICENSES write subsequently fails,
+    // support can still find the issued key from the payment-intent ID.
+    // Reversed order (LICENSES first) creates orphan licenses with no PI
+    // binding — refund/GDPR-deletion flow breaks in that case.
+    try {
+      await putPaymentLicense(c.env.PAYMENTS, paymentIntentId, key);
+    } catch (err) {
+      console.error('webhook.payments_write_failed', {
+        paymentIntentId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      // Bail with 500 — no LICENSES write, no email, Stripe will retry.
+      return c.body(null, 500);
+    }
+
+    try {
+      await putLicense(c.env.LICENSES, record);
+    } catch (err) {
+      // PAYMENTS is already written; support can reconcile using the PI.
+      console.error('webhook.licenses_write_failed', {
+        paymentIntentId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      // Bail with 500 — no email sent, Stripe retries; PAYMENTS-already-set
+      // check at the top of the next delivery handles idempotency.
+      return c.body(null, 500);
+    }
+
+    // ACCEPTED v1 RISK: parallel webhook deliveries may both miss the PAYMENTS
+    // check before either write completes. Mitigation would require a Durable
+    // Object or compare-and-set primitive; deferred until post-launch metrics
+    // justify the cost. See docs/security/pentest-issues-2026-04-29.md
+    // "Findings not filed".
 
     try {
       await deps.sendLicenseEmail(c.env, record);

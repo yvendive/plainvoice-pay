@@ -16,8 +16,15 @@ id = "d2429a43a9aa43c188b7858e1744c083"
 preview_id = "d2429a43a9aa43c188b7858e1744c083"
 
 [vars]
+# Default vars (dev / preview). Includes localhost for local Next.js dev.
 FRONTEND_URL = "https://plainvoice.de"
 ALLOWED_ORIGINS = "https://plainvoice.de,http://localhost:3000"
+
+# Production environment — deployed via `wrangler deploy --env production`.
+# ALLOWED_ORIGINS is narrowed to the live domain only; localhost is not
+# exposed in production. All other vars inherit from the top-level [vars].
+[env.production.vars]
+ALLOWED_ORIGINS = "https://plainvoice.de"
 
 # Secrets — set via `wrangler secret put`, never committed:
 #   STRIPE_SECRET_KEY

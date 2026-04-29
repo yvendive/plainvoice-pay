@@ -21,9 +21,14 @@ export type StripeClient = {
 
 export type StripeFactory = (env: Pick<Bindings, 'STRIPE_SECRET_KEY'>) => StripeClient;
 
+// Pinned API version. Upgrades require deliberate compatibility PR — see issue #5.
 export const getStripe: StripeFactory = (env) => {
   const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
     httpClient: Stripe.createFetchHttpClient(),
+    // Sourced from stripe npm package v17.7.0 (LatestApiVersion).
+    // Cross-check against Stripe Dashboard → Developers → API version
+    // for acct_1TQrJMLJIGoQ4ULV before merging — Yves confirms.
+    apiVersion: '2025-02-24.acacia',
   });
   return stripe as unknown as StripeClient;
 };
