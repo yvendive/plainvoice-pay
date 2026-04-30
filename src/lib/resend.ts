@@ -25,6 +25,7 @@ export function buildEmail(record: LicenseRecord, frontendUrl: string) {
 function buildDe(record: LicenseRecord, frontendUrl: string) {
   const subject = 'Ihr Plainvoice Pro Lizenzschlüssel';
   const unlockUrl = `${frontendUrl}/de/unlock`;
+  const widerrufUrl = `${frontendUrl}/de/widerruf`;
   const text = `Hallo,
 
 vielen Dank für Ihren Kauf von Plainvoice Pro.
@@ -42,6 +43,8 @@ Der Schlüssel ist unbefristet gültig und an dieses Browser-Profil gebunden.
 Bewahren Sie die E-Mail auf — bei Browserwechsel oder neuem Gerät benötigen Sie ihn erneut.
 
 Eine Rechnung erhalten Sie separat von Stripe.
+
+Möchten Sie den Vertrag widerrufen? Auch wenn das Widerrufsrecht durch Ihre Zustimmung zur sofortigen Vertragserfüllung erloschen ist, finden Sie das Muster-Widerrufsformular sowie unsere Kontaktdaten unter ${widerrufUrl} — wir bearbeiten Anfragen wohlwollend.
 
 Bei Fragen: info@plain-cards.com
 
@@ -61,6 +64,8 @@ Bei Fragen: info@plain-cards.com
     footer:
       'Eine Rechnung erhalten Sie separat von Stripe. Fragen? info@plain-cards.com — YS Development B.V.',
     greeting: 'Hallo,',
+    widerruf: `Möchten Sie den Vertrag widerrufen? Auch wenn das Widerrufsrecht durch Ihre Zustimmung zur sofortigen Vertragserfüllung erloschen ist, finden Sie das Muster-Widerrufsformular sowie unsere Kontaktdaten unter ${widerrufUrl} — wir bearbeiten Anfragen wohlwollend.`,
+    widerrufUrl,
   });
   return { subject, text, html };
 }
@@ -68,6 +73,7 @@ Bei Fragen: info@plain-cards.com
 function buildEn(record: LicenseRecord, frontendUrl: string) {
   const subject = 'Your Plainvoice Pro license key';
   const unlockUrl = `${frontendUrl}/en/unlock`;
+  const widerrufUrl = `${frontendUrl}/de/widerruf`;
   const text = `Hello,
 
 thank you for purchasing Plainvoice Pro.
@@ -86,6 +92,8 @@ Keep this email — if you switch browsers or devices, you'll need it again.
 
 Your invoice will arrive separately from Stripe.
 
+Want to withdraw from the contract? Even though the right of withdrawal has expired due to your consent to immediate delivery, you can find the model withdrawal form and our contact details at ${widerrufUrl} — we handle requests favourably.
+
 Questions? info@plain-cards.com
 
 — YS Development B.V.
@@ -100,6 +108,8 @@ Questions? info@plain-cards.com
     footer:
       'Your invoice will arrive separately from Stripe. Questions? info@plain-cards.com — YS Development B.V.',
     greeting: 'Hello,',
+    widerruf: `Want to withdraw from the contract? Even though the right of withdrawal has expired due to your consent to immediate delivery, you can find the model withdrawal form and our contact details at ${widerrufUrl} — we handle requests favourably.`,
+    widerrufUrl,
   });
   return { subject, text, html };
 }
@@ -113,6 +123,8 @@ type HtmlOpts = {
   cta: string;
   ctaUrl: string;
   footer: string;
+  widerruf: string;
+  widerrufUrl: string;
 };
 
 function baseHtml(o: HtmlOpts): string {
@@ -125,6 +137,7 @@ function baseHtml(o: HtmlOpts): string {
 <pre style="background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 6px; padding: 12px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; user-select: all;">${escapeHtml(o.key)}</pre>
 <ol style="padding-left: 20px;">${stepsHtml}</ol>
 <p style="margin-top: 16px;"><a href="${escapeAttr(o.ctaUrl)}" style="display: inline-block; padding: 10px 16px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">${escapeHtml(o.cta)}</a></p>
+<p style="margin-top: 16px; font-size: 13px; color: #555;">${escapeHtml(o.widerruf).replace(escapeHtml(o.widerrufUrl), `<a href="${escapeAttr(o.widerrufUrl)}" style="color: #555; text-decoration: underline;">${escapeHtml(o.widerrufUrl)}</a>`)}</p>
 <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
 <p style="font-size: 12px; color: #555;">${escapeHtml(o.footer)}</p>
 </body></html>`;
